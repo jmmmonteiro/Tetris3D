@@ -224,16 +224,43 @@ void refreshTorre(char andar){
   boolean flag=0;
   byte auxiliar[numMCP*2]; //byte a enviar para acender leds
   
-  for(j=0;j<yTorre;j++){
+   for(j=0;j<yTorre;j++){
     auxiliar[j]=0x00; //coluna toda apagada
     for(i=0;i<xTorre;i++){
         if(fundo_torre[i][j][andar] || ativo_torre[i][j][andar]){ //OR, pois basta apenas um em ambas ligado
-          flag=1; 
-          break;
+          flag=true; 
         }  
       if(flag){
-        flag=0;
-        auxiliar[i] |= (0x1) << 7-j; //admitindo led(0,0) e MSB ????????(confirmar)
+        flag=false;
+        if(j%2==0){
+          if(i==0)
+           auxiliar[i] |=0x01;
+          else if(i==1)
+           auxiliar[i] |=0x02;
+          else if(i==2)
+           auxiliar[i] |=0x04;
+          else if(i==3)
+            auxiliar[i] |=0x08;
+          else if(i==4)
+            auxiliar[i] |=0x10;
+          else if(i==5)
+            auxiliar[i] |=0x20;
+        }
+          if(j%2!=0){
+          if(i==0)
+            auxiliar[i] |=0x04;
+          else if(i==1)
+            auxiliar[i] |=0x08;
+          else if(i==2)
+            auxiliar[i] |=0x10;
+          else if(i==3)
+            auxiliar[i] |=0x20;
+          else if(i==4)
+            auxiliar[i] |=0x40;
+          else if(i==5)
+            auxiliar[i] |=0x80;
+          
+        }
       }  
     }
   }
