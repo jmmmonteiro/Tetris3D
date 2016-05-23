@@ -234,31 +234,31 @@ void refreshTorre(char andar){
         flag=false;
         if(j%2==0){
           if(i==0)
-           auxiliar[i] |=0x01;
+           auxiliar[j] |=0x01;
           else if(i==1)
-           auxiliar[i] |=0x02;
+           auxiliar[j] |=0x02;
           else if(i==2)
-           auxiliar[i] |=0x04;
+           auxiliar[j] |=0x04;
           else if(i==3)
-            auxiliar[i] |=0x08;
+           auxiliar[j] |=0x08;
           else if(i==4)
-            auxiliar[i] |=0x10;
+           auxiliar[j] |=0x10;
           else if(i==5)
-            auxiliar[i] |=0x20;
+           auxiliar[j] |=0x20;
         }
           if(j%2!=0){
           if(i==0)
-            auxiliar[i] |=0x04;
+            auxiliar[j] |=0x04;
           else if(i==1)
-            auxiliar[i] |=0x08;
+            auxiliar[j] |=0x08;
           else if(i==2)
-            auxiliar[i] |=0x10;
+            auxiliar[j] |=0x10;
           else if(i==3)
-            auxiliar[i] |=0x20;
+            auxiliar[j] |=0x20;
           else if(i==4)
-            auxiliar[i] |=0x40;
+            auxiliar[j] |=0x40;
           else if(i==5)
-            auxiliar[i] |=0x80;
+            auxiliar[j] |=0x80;
           
         }
       }  
