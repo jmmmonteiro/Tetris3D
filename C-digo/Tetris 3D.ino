@@ -295,6 +295,7 @@ void refreshTorre(char andar){
      //para negar bits pois logica negada transistores
      while(s<6){
         auxiliar[s]=!auxiliar[s];
+        s++;
      }
      //envia dados e atualizar valor anteriormente escrito(pois so escreve se for diferente do anterior, poupar tempo
      if(auxiliar[1]!=EMCP_GPIOA_anterior){
