@@ -26,7 +26,7 @@
 //**********************************************************************************variaveis globais***************************************************************************************************************************************************************************
 
 char contador_pisos=0;//sinaliza em que piso esta [1, 6]
-char contador_ciclos=0;//250 para descer peça 1 andar
+int contador_ciclos=0;//250 para descer peça 1 andar
 char pontuacao_atual=0;//contar pontuacao obtida cada ronda
 char blocoEscolhido=0; //para identificar o bloco sorteado a ser desenhado
 
@@ -37,6 +37,8 @@ boolean comecar=true;//caso fazer novo jogo
 boolean flag=false;//para executar a tarefa dentro do loop
 boolean in_game=false;//esta um jogo a decorrer
 boolean saida=false;//sinaliza o sair do jogo atual
+boolean flag_left=0;
+char andar_bloco_ativo=5;// função que gera um bloco reinicia para 5 (ultimo andar)
 
 byte EMCP_GPIOB_anterior=0xFF;
 byte EMCP_GPIOA_anterior=0xFF;
@@ -137,6 +139,16 @@ void setup() {
  Wire.write(IODIRB); // IODIRB register
  Wire.write(0x00); // set all of port B to outputs
  Wire.endTransmission();
+ 
+
+ fundo_torre[0][0][0]=true;
+  fundo_torre[5][5][0]=true;
+ ativo_torre[0][1][5]=true;
+  ativo_torre[1][1][5]=true;
+   ativo_torre[2][1][5]=true;
+ 
+      flag_left=true;
+ 
 
 }
 
@@ -148,14 +160,14 @@ ISR(TIMER1_COMPA_vect){          // interrupção por igualdade de comparação 
     digitalWrite(dados, LOW);
     contador_pisos=contador_pisos+1;
     contador_ciclos++;
-    if(contador_ciclos>=250){
+    if(contador_ciclos>251){
       contador_ciclos=0;
     }
     if(contador_pisos>11){ //caso saia dos shiftRegister inserir dado para ter clock
       contador_pisos=0;
       digitalWrite(dados, HIGH);
     }
-
+    
 }
 
 void resetArrays(){
@@ -196,116 +208,141 @@ void newGame(){
 }
 
 void MoveDown(){//verfica se pode descer um piso (se nao puder passa ativo para o fundo)
+    
     char i,j,k,a,b;
-    for(k=5;k>=0;k--){
-      for(j=5;j>=0;j--){
-        for(i=5;i>=0;i--){
-          if(fundo_torre[i][j][k]){//se background estiver ativo verifica se tem algum bloco ativo no nivel acima
-            if(ativo_torre[i][j][k+1]){//se o nivel acima está ativo então nao pode descer
-              for(a=0;a<6;a++){
-                for(b=0;b<6;b++){
-                  if(ativo_torre[a][b][k+1]){
-                    fundo_torre[a][b][k+1]=ativo_torre[a][b][k+1];//bloco ativo passa a fundo
-                    ativo_torre[a][b][k+1]=0;
-                  }
+    
+      if(andar_bloco_ativo==-1)
+        return;
+        
+      if(andar_bloco_ativo==0){//ativo chega ao ultimo piso
+         for(a=0;a<xTorre;a++){
+           for(b=0;b<yTorre;b++){
+               fundo_torre[a][b][andar_bloco_ativo] |=ativo_torre[a][b][andar_bloco_ativo];//bloco ativo passa a fundo
+               ativo_torre[a][b][andar_bloco_ativo]=0;
+               andar_bloco_ativo=-1;
+                
+              }
+            } //depois de meter no fundo retorna
+            //PEDIR NOVO BLOCO
+            return;
+          }
+          
+      for(j=0;j<6;j++){
+        for(i=0;i<6;i++){
+          if(fundo_torre[i][j][andar_bloco_ativo-1] && ativo_torre[i][j][andar_bloco_ativo]){//se background estiver ativo verifica se tem algum bloco ativo no nivel acima
+              for(a=0;a<xTorre;a++){
+                for(b=0;b<yTorre;b++){
+                    fundo_torre[a][b][andar_bloco_ativo] |= ativo_torre[a][b][andar_bloco_ativo];
+                    ativo_torre[a][b][andar_bloco_ativo]=0;
+                    andar_bloco_ativo=-1; //Quando gerar novo bloco ativo reinicia a 5 
                 }
               } //depois de meter no fundo retorna
               //PEDIR NOVO BLOCO
               return;
             }
           }
-          else if(k==0){//ativo chega ao ultimo piso
-            for(a=0;a<6;a++){
-              for(b=0;b<6;b++){
-                if(ativo_torre[a][b][k+1]){
-                  fundo_torre[a][b][k]=ativo_torre[a][b][k];//bloco ativo passa a fundo
-                  ativo_torre[a][b][k]=0;
-                }
-              }
-            } //depois de meter no fundo retorna
-            //PEDIR NOVO BLOCO
-            return;
-          }
         }
-      }
-    }
+    
     //se não passar a fundo desce um piso
-    for(i=1;i<6;i++){
-      for(j=1;i<6;i++){
-        for(j=1;i<6;i++){
-          ativo_torre[i][j][k-1]=ativo_torre[i][j][k];
+      for(j=0;j<6;j++){
+        for(i=0;i<6;i++){
+          ativo_torre[i][j][andar_bloco_ativo-1]=ativo_torre[i][j][andar_bloco_ativo];
+          ativo_torre[i][j][andar_bloco_ativo]=0;
         }
       }
-    }
+    
+    andar_bloco_ativo--;
     return;
+}
+
+void MoveLeft(){//verfica se pode descer um piso (se nao puder passa ativo para o fundo)
+    
+    char i,j,k,a,b;
+    boolean teste;
+      if(flag_left==false)
+        return;
+      flag_left=false;  
+      //ativo chega ao ultimo piso
+         for(b=0;b<yTorre;b++){
+           for(a=0;a<xTorre;a++){
+               if(ativo_torre[a][b][andar_bloco_ativo] && b==0)
+                 return;
+               teste=ativo_torre[a][b][andar_bloco_ativo]  && fundo_torre[a][b-1][andar_bloco_ativo]; //se tiver 2 bits lado a lado acesos não deixa mexer
+               if(teste==1)
+                 return;//nao deixa mexer no left
+           }
+         } //depois de meter no fundo retorna
+         for(b=0;b<yTorre;b++){
+           for(a=0;a<xTorre;a++){
+             ativo_torre[a][b][andar_bloco_ativo]=ativo_torre[a][b-1][andar_bloco_ativo];
+           }
+         }
+            //PEDIR NOVO BLOCO
+         return;
+     
 }
 
 void refreshTorre(char andar){
 
   char i;
   char j;
-  char k;
   char s=0;
-  boolean flag=0;
   byte auxiliar[numMCP*2]; //byte a enviar para acender leds
 
-  if(contador_ciclos>=250)// se passar 250 interrupçoes verifica se mudou alguma coisa nos vetores que representam a torre
-  {
-     MoveDown();
-     for(j=0;j<yTorre;j++){//percorre vetores para ver se muda alguma coisa
-      auxiliar[j]=0x00; //coluna toda apagada
-      for(i=0;i<xTorre;i++){
+//  if(contador_ciclos>=250)// se passar 250 interrupçoes verifica se mudou alguma coisa nos vetores que representam a torre
+//  {
+//     MoveDown();
+//  }    
+      andar=andar/2;
+      
+      for(j=0;j<yTorre;j++){//percorre vetores para ver se muda alguma coisa
+      auxiliar[j]=0xFF; //coluna toda apagada
+       for(i=0;i<xTorre;i++){
           if(fundo_torre[i][j][andar] || ativo_torre[i][j][andar]){ //OR, pois basta apenas um em ambas ligado
-            flag=true;
+            if(j%2==0){
+              if(i==0)
+               auxiliar[j] &= 0xFE;
+              else if(i==1)
+               auxiliar[j] &= 0xFD;
+              else if(i==2)
+               auxiliar[j] &= 0xFB;
+              else if(i==3)
+                auxiliar[j] &= 0xF7;
+              else if(i==4)
+                auxiliar[j] &= 0xEF;
+              else if(i==5)
+                auxiliar[j] &= 0xDF;
+             }
+            if(j%2!=0){
+              if(i==0)
+                auxiliar[j] &= 0xFB;
+              else if(i==1)
+                auxiliar[j] &= 0xF7;
+              else if(i==2)
+                auxiliar[j] &= 0xEF;
+              else if(i==3)
+                auxiliar[j] &= 0xDF;
+              else if(i==4)
+                auxiliar[j] &= 0xBF;
+              else if(i==5)
+                auxiliar[j] &= 0x7F;
+             }
           }
-        if(flag){
-          flag=false;
-          if(j%2==0){
-            if(i==0)
-             auxiliar[j] |=0x01;
-            else if(i==1)
-             auxiliar[j] |=0x02;
-            else if(i==2)
-             auxiliar[j] |=0x04;
-            else if(i==3)
-              auxiliar[j] |=0x08;
-            else if(i==4)
-              auxiliar[j] |=0x10;
-            else if(i==5)
-              auxiliar[j] |=0x20;
-           }
-          if(j%2!=0){
-            if(i==0)
-              auxiliar[j] |=0x04;
-            else if(i==1)
-              auxiliar[j] |=0x08;
-            else if(i==2)
-              auxiliar[j] |=0x10;
-            else if(i==3)
-              auxiliar[j] |=0x20;
-            else if(i==4)
-              auxiliar[j] |=0x40;
-            else if(i==5)
-              auxiliar[j] |=0x80;
-           }
-        }
        }
-     }
-
-     //para negar bits pois logica negada transistores
-     while(s<6){
-        auxiliar[s]=!auxiliar[s];
-        s++;
-     }
+    }
+    
+    
      //envia dados e atualizar valor anteriormente escrito(pois so escreve se for diferente do anterior, poupar tempo
      if(auxiliar[1]!=EMCP_GPIOA_anterior){
           MCPwrite(enderecoEMCP, GPIOA, auxiliar[1]);
           EMCP_GPIOA_anterior=auxiliar[1];
      }
+     
      if(auxiliar[0]!=EMCP_GPIOB_anterior){
           MCPwrite(enderecoEMCP, GPIOB, auxiliar[0]);
           EMCP_GPIOB_anterior=auxiliar[0];
      }
+          
      if(auxiliar[3]!=MMCP_GPIOA_anterior){
           MCPwrite(enderecoMMCP, GPIOA, auxiliar[3]);
           MMCP_GPIOA_anterior=auxiliar[3];
@@ -321,21 +358,14 @@ void refreshTorre(char andar){
      if(auxiliar[4]!=DMCP_GPIOB_anterior){
           MCPwrite(enderecoDMCP, GPIOB, auxiliar[4]);
           DMCP_GPIOB_anterior=auxiliar[4];
-     }
-   }
-   else //se não passarem escreve os valores anteriores
-   {
-     MCPwrite(enderecoEMCP, GPIOB, EMCP_GPIOB_anterior);
-     MCPwrite(enderecoEMCP, GPIOA, EMCP_GPIOA_anterior);
-     MCPwrite(enderecoMMCP, GPIOB, MMCP_GPIOB_anterior);
-     MCPwrite(enderecoMMCP, GPIOA, MMCP_GPIOA_anterior);
-     MCPwrite(enderecoDMCP, GPIOB, DMCP_GPIOB_anterior);
-     MCPwrite(enderecoDMCP, GPIOA, DMCP_GPIOA_anterior);
-   }
-}
+     } 
+    
+}  
 
-void loop() {
 
+
+
+/*
  if(comecar){
     newGame();
     comecar=false;
@@ -353,80 +383,22 @@ void loop() {
           break;
    }
  }
-
-}
-
-//http://tronixstuff.com/2011/08/26/tutorial-maximising-your-arduinos-io-ports/
-
-
-//**********************************************************************************************************************apaga uma linha cheia*********************************************************************************
-/*
-boolean deleteRow(){
-
-  char i, j, k;
-  char contador=0;
-
-  for(i=0; i<xTorre;i++){
-    for(j=0; j<yTorre;j++){
-     if(fundo_torre[i][j][i]){
-      contador++;
-     }
-     if(contador==6 and j==5){
-       for(k=0;k<xTorre;k++){
-         fundo_torre[i][k][i]=0;
-       }
-       dadosEnviar();
-       pontuacao_atual+=10;//bonus pontos encher uma linha
-       contador=0;
-     }
-   }
- }
-}
-
-void lerBotoes(){ //falta acabar <--------------------------------------------------------------------------------------------------------------------------------------------------------------
-
- char dadosLidos[numMCP*2]={1}; //adimitindo logica negada nos botões, para dizer que todos não precionados inicialmente
- char auxiliar=0x00; //para ficar de acordo com a negacao
- char i;
-
- dadosLidos[0]=MCPread(enderecoEMCP, GPIOA);
- dadosLidos[1]=MCPread(enderecoEMCP, GPIOB);
- dadosLidos[2]=MCPread(enderecoMMCP, GPIOA);
- dadosLidos[3]=MCPread(enderecoMMCP, GPIOB);
- dadosLidos[4]=MCPread(enderecoDMCP, GPIOA);
- dadosLidos[5]=MCPread(enderecoDMCP, GPIOB);
-
- for(i=0; i<(numMCP*2); i++){
-   //vai buscar apenas os 2 ultimos bits cada lado MCP, pois onde estao dados dos botoes
-   //assumindo botoes em logica negada, nego dados lidos para ficar em logica "directa"
-   auxiliar=( (~dadosLidos[i] & 0x01) << 0 ) | ( (~dadosLidos[i] & 0x02) << 1 ); //vai buscar apenas os 2 ultimos bits cada lado MCP, pois onde estao dados dos botoes
-
-    switch(auxiliar){
-
-      case '0x01' : //botao ligado lado A MCP esquerda porta 8
-                      //fazer função associdada esse botao
-      break;
-
-      case '0x02':  //botao ligado lado A MCP esquerda porta 7
-                      //fazer função associdada esse botao
-      break;
-
-      case '0x03':  //botao ligado lado A MCP esquerda porta 7 e porta 8
-                      //fazer função associdada aos dois botoes
-      break;
-
-    //fazer pata todos os casoos porta A e B todos MCP
-    }
-  }
-
-}
-
-//falta  acelerarQueda, gameover, ler botoes
-boolean acelerarQueda(){
-
-}
-
-boolean gameover(){
-
- }
 */
+ void loop(){
+      if(contador_ciclos==250)
+      {
+        MoveDown();
+      }
+      if(contador_ciclos==100)
+      {
+        //MoveLeft();
+      }
+      if(flag==true){
+       if(contador_pisos%2==0)
+         refreshTorre(contador_pisos);
+         
+       flag=false;
+       digitalWrite(Clock, HIGH);  
+       }  
+    
+}
