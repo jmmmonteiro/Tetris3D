@@ -12,7 +12,7 @@
 #define enderecoMMCP 0x26 //M->meio
 #define enderecoDMCP 0x27 //D->direita
 
-#define IODIRA  0x00	// Port A direction register. Write a 0 to make a pin an output, a 1 to make it an input
+#define IODIRA  0x00  // Port A direction register. Write a 0 to make a pin an output, a 1 to make it an input
 #define IODIRB  0x01    // Port B direction register. Write a 0 to make a pin an output, a 1 to make it an input
 #define GPIOA   0x12    // Register Address of Port A - read data from or write output data to this port
 #define GPIOB   0x13    // Register Address of Port B - read data from or write output data to this port
@@ -38,14 +38,17 @@ boolean flag=false;//para executar a tarefa dentro do loop
 boolean in_game=false;//esta um jogo a decorrer
 boolean saida=false;//sinaliza o sair do jogo atual
 boolean flag_left=0;
+boolean flag_right=0;
+boolean flag_front=0;
+boolean flag_back=0;
 char andar_bloco_ativo=5;// função que gera um bloco reinicia para 5 (ultimo andar)
 
-byte EMCP_GPIOB_anterior=0xFF;
-byte EMCP_GPIOA_anterior=0xFF;
-byte MMCP_GPIOB_anterior=0xFF;
-byte MMCP_GPIOA_anterior=0xFF;
-byte DMCP_GPIOB_anterior=0xFF;
-byte DMCP_GPIOA_anterior=0xFF;
+byte EMCP_GPIOB_anterior=0x00;
+byte EMCP_GPIOA_anterior=0x00;
+byte MMCP_GPIOB_anterior=0x00;
+byte MMCP_GPIOA_anterior=0x00;
+byte DMCP_GPIOB_anterior=0x00;
+byte DMCP_GPIOA_anterior=0x00;
 
 
 //estrutura para pecas
@@ -78,10 +81,10 @@ byte MCPread(byte i2cAddress, byte i2cRegister){
    Wire.write(i2cRegister);
    Wire.endTransmission();
 
-   Wire.requestFrom(i2cAddress,(byte)1);   //Now we start the actual read
-   while(Wire.available()!=1);             //wait unit the data gets back
+   Wire.requestFrom(i2cAddress,1);   //Now we start the actual read
+   //while(Wire.available()!=1);             //wait unit the data gets back
    receive_data=Wire.read();
-   //receive_data = ~Wire.read()         // usar caso logica negado botoes (get the data, note bitwise inversion to make it easier to tell what switch is closed)
+   receive_data =~receive_data;         // usar caso logica negado botoes (get the data, note bitwise inversion to make it easier to tell what switch is closed)
 
   return receive_data;
 }
@@ -91,6 +94,7 @@ void setup() {
 
   pinMode(Clock, OUTPUT); //mudar para os define, mas confirmar se estão certos pode o 2 e 3 estar ao contrario
   pinMode(dados, OUTPUT);
+   pinMode(13, OUTPUT);
   Serial.begin(9600);  //configure the serial port so we can use the Serial Monitor
   randomSeed(analogRead(1));           //semear semente para depois escolher as pecas
 
@@ -112,42 +116,47 @@ void setup() {
   // set I/O pins to inputs/outputs
  Wire.beginTransmission(enderecoEMCP); //indicar endereco dispositivo
  Wire.write(IODIRA); // select register to a write
- Wire.write(0x00); // set flanc A of MCP.... 0 = output, 1 = input                             <--------------ver onde ligados botoes e alterar 0x00 para .....
+ Wire.write(0xC0); // set flanc A of MCP.... 0 = output, 1 = input                             <--------------ver onde ligados botoes e alterar 0x00 para .....
  Wire.endTransmission();
 
  Wire.beginTransmission(enderecoEMCP);
  Wire.write(IODIRB); // IODIRB register
- Wire.write(0x00); // set all of port B to outputs
+ Wire.write(0xC0); // set all of port B to outputs
  Wire.endTransmission();
 
  Wire.beginTransmission(enderecoMMCP);
  Wire.write(IODIRA); // IODIRA register
- Wire.write(0x00); // set all of port A to outputs
+ Wire.write(0xC0); // set all of port A to outputs
  Wire.endTransmission();
 
  Wire.beginTransmission(enderecoMMCP);
  Wire.write(IODIRB); // IODIRB register
- Wire.write(0x00); // set all of port B to outputs
+ Wire.write(0xC0); // set all of port B to outputs
  Wire.endTransmission();
 
  Wire.beginTransmission(enderecoDMCP);
  Wire.write(IODIRA); // IODIRA register
- Wire.write(0x00); // set all of port A to outputs
+ Wire.write(0xC0); // set all of port A to outputs
  Wire.endTransmission();
 
  Wire.beginTransmission(enderecoDMCP);
  Wire.write(IODIRB); // IODIRB register
- Wire.write(0x00); // set all of port B to outputs
+ Wire.write(0xC0); // set all of port B to outputs
  Wire.endTransmission();
  
 
  fundo_torre[0][0][0]=true;
-  fundo_torre[5][5][0]=true;
- ativo_torre[0][1][5]=true;
-  ativo_torre[1][1][5]=true;
-   ativo_torre[2][1][5]=true;
- 
-      flag_left=true;
+  fundo_torre[2][5][0]=true;
+// ativo_torre[0][2][5]=true;
+   ativo_torre[2][2][5]=true;
+   ativo_torre[3][2][5]=true;
+
+      //flag_left=true; 
+      //flag_right=true;
+     // flag_front=true;
+      //flag_back=true;
+      
+      
  
 
 }
@@ -209,7 +218,7 @@ void newGame(){
 
 void MoveDown(){//verfica se pode descer um piso (se nao puder passa ativo para o fundo)
     
-    char i,j,k,a,b;
+    char i,j,a,b;
     
       if(andar_bloco_ativo==-1)
         return;
@@ -255,31 +264,150 @@ void MoveDown(){//verfica se pode descer um piso (se nao puder passa ativo para 
     return;
 }
 
-void MoveLeft(){//verfica se pode descer um piso (se nao puder passa ativo para o fundo)
+void MoveLeft(){//Move para a esquerda
     
-    char i,j,k,a,b;
-    boolean teste;
+    char i,j,a,b;
       if(flag_left==false)
         return;
+      else{  
       flag_left=false;  
       //ativo chega ao ultimo piso
+      for(b=0;b<yTorre;b++){
+         for(a=0;a<xTorre;a++){
+            if(ativo_torre[a][b][andar_bloco_ativo] && b==0)
+               return;
+                 
+             if(ativo_torre[a][b][andar_bloco_ativo]  && fundo_torre[a][b-1][andar_bloco_ativo]) //se tiver 2 bits lado a lado acesos não deixa mexer
+               return;//nao deixa mexer no left
+            }
+         } 
          for(b=0;b<yTorre;b++){
            for(a=0;a<xTorre;a++){
-               if(ativo_torre[a][b][andar_bloco_ativo] && b==0)
+             ativo_torre[a][b-1][andar_bloco_ativo]=ativo_torre[a][b][andar_bloco_ativo];
+           }
+         }            
+      return;
+      }
+      return;
+}
+
+void MoveRight(){//Move Direita
+    
+    char i,j,a,b;
+      if(flag_right==false)
+        return;
+      else{  
+      flag_right=false;  
+      //ativo chega ao ultimo piso
+      for(b=0;b<yTorre;b++){
+         for(a=0;a<xTorre;a++){
+            if(ativo_torre[a][b][andar_bloco_ativo] && b==5)
+               return;
+                 
+             if(ativo_torre[a][b][andar_bloco_ativo]  && fundo_torre[a][b+1][andar_bloco_ativo]) //se tiver 2 bits lado a lado acesos não deixa mexer
+               return;//nao deixa mexer no left
+            }
+         } 
+         for(b=5;b>=0;b--){
+           for(a=0;a<xTorre;a++){
+             ativo_torre[a][b+1][andar_bloco_ativo]=ativo_torre[a][b][andar_bloco_ativo];
+           }
+         }            
+      return;
+      }
+      return;
+}
+
+void MoveFront(){//Move para a frente
+    
+    char i,j,a,b;
+      if(flag_front==false)
+        return;
+      else{  
+      flag_front=false;  
+      //ativo chega ao ultimo piso
+      for(a=0;a<xTorre;a++){
+         for(b=0;b<yTorre;b++){
+            if(ativo_torre[a][b][andar_bloco_ativo] && a==5)
+               return;
+                 
+             if(ativo_torre[a][b][andar_bloco_ativo]  && fundo_torre[a+1][b][andar_bloco_ativo]) //se tiver 2 bits lado a lado acesos não deixa mexer
+               return;//nao deixa mexer no left
+            }
+         } 
+         for(a=5;a>=0;a--){
+           for(b=0;b<yTorre;b++){
+             ativo_torre[a+1][b][andar_bloco_ativo]=ativo_torre[a][b][andar_bloco_ativo];
+           }
+         }            
+      return;
+      }
+      return;
+}
+
+void MoveBack(){//Move para a frente
+    
+    char i,j,a,b;
+      if(flag_back==false)
+        return;
+      else{  
+        flag_back=false;  
+        //ativo chega ao ultimo piso
+        for(a=0;a<xTorre;a++){
+           for(b=0;b<yTorre;b++){
+              if(ativo_torre[a][b][andar_bloco_ativo] && a==0)
                  return;
-               teste=ativo_torre[a][b][andar_bloco_ativo]  && fundo_torre[a][b-1][andar_bloco_ativo]; //se tiver 2 bits lado a lado acesos não deixa mexer
-               if(teste==1)
+                   
+               if(ativo_torre[a][b][andar_bloco_ativo]  && fundo_torre[a-1][b][andar_bloco_ativo]) //se tiver 2 bits lado a lado acesos não deixa mexer
                  return;//nao deixa mexer no left
-           }
-         } //depois de meter no fundo retorna
-         for(b=0;b<yTorre;b++){
-           for(a=0;a<xTorre;a++){
-             ativo_torre[a][b][andar_bloco_ativo]=ativo_torre[a][b-1][andar_bloco_ativo];
-           }
-         }
-            //PEDIR NOVO BLOCO
-         return;
-     
+              }
+           } 
+            for(b=0;b<yTorre;b++){
+              for(a=0;a<xTorre;a++){
+               ativo_torre[a][b][andar_bloco_ativo]=ativo_torre[a+1][b][andar_bloco_ativo];
+             }
+           }            
+        return;
+      }
+      return;
+}
+
+void lerBotoes(){
+
+   byte receive[6];
+  
+     //receive[0]=MCPread(enderecoEMCP, GPIOA);//rotacao z (01 e 02)
+     receive[1]=MCPread(enderecoEMCP, GPIOB);
+     //receive[2]=MCPread(enderecoMMCP, GPIOA);//esquerda(01) e drop(02)
+     //receive[3]=MCPread(enderecoMMCP, GPIOB);
+     //receive[4]=MCPread(enderecoDMCP, GPIOA);//direita(01) e pausa(02)
+     //receive[5]=MCPread(enderecoDMCP, GPIOB);
+
+//  Serial.print(receive[0]);
+//  Serial.print("\n");
+  
+  if((receive[2] & 0x02)==2){
+    //drop flag_front=true;
+  }
+  if((receive[2] & 0x01)==1){
+    flag_left=true;
+  }
+  if((receive[5] & 0x02)==2){
+    flag_front=true;
+  }
+  if((receive[5] & 0x01)==1){
+    flag_back=true;
+  }
+  if((receive[4] & 0x02)==2){
+    //pause flag_front=true;
+  }
+  if((receive[4] & 0x01)==1){
+    flag_right=true;
+  }
+
+   Serial.println(receive[1]);
+   Serial.println("\n");
+  
 }
 
 void refreshTorre(char andar){
@@ -289,10 +417,15 @@ void refreshTorre(char andar){
   char s=0;
   byte auxiliar[numMCP*2]; //byte a enviar para acender leds
 
-//  if(contador_ciclos>=250)// se passar 250 interrupçoes verifica se mudou alguma coisa nos vetores que representam a torre
-//  {
+  if(contador_ciclos>=250)// se passar 250 interrupçoes verifica se mudou alguma coisa nos vetores que representam a torre
+  {
 //     MoveDown();
-//  }    
+//     MoveLeft();
+//     MoveRight();
+//     MoveFront();
+//     MoveBack();
+  }    
+  
       andar=andar/2;
       
       for(j=0;j<yTorre;j++){//percorre vetores para ver se muda alguma coisa
@@ -363,8 +496,6 @@ void refreshTorre(char andar){
 }  
 
 
-
-
 /*
  if(comecar){
     newGame();
@@ -385,14 +516,14 @@ void refreshTorre(char andar){
  }
 */
  void loop(){
-      if(contador_ciclos==250)
-      {
-        MoveDown();
+  
+     
+     if(contador_ciclos==100)
+     {
+       lerBotoes();
+     
       }
-      if(contador_ciclos==100)
-      {
-        //MoveLeft();
-      }
+        
       if(flag==true){
        if(contador_pisos%2==0)
          refreshTorre(contador_pisos);
